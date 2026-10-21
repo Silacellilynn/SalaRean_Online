@@ -14,6 +14,8 @@ import {
   INITIAL_ANNOUNCEMENTS,
   INITIAL_USERS
 } from './mockData'
+import { INITIAL_PRIMARY_CLASSES, INITIAL_PRIMARY_QUIZZES } from './primaryCurriculum'
+import { DEFAULT_TEACHER_NAME, normalizeTeacherName } from './teacherIdentity'
 
 const STORAGE_KEYS = {
   COURSES: 'wexsee_courses',
@@ -46,9 +48,12 @@ function setLocalItem(key, value) {
 
 // Initialize default storage on first load if empty
 export function initLocalStorageIfEmpty() {
-  if (!localStorage.getItem(STORAGE_KEYS.COURSES)) {
-    setLocalItem(STORAGE_KEYS.COURSES, INITIAL_COURSES)
-  }
+  const courses = getLocalItem(STORAGE_KEYS.COURSES, INITIAL_COURSES)
+  const courseIds = new Set(courses.map(course => course.id))
+  setLocalItem(STORAGE_KEYS.COURSES, [
+    ...INITIAL_PRIMARY_CLASSES.filter(course => !courseIds.has(course.id)),
+    ...courses
+  ])
   if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
     setLocalItem(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES)
   }
@@ -58,9 +63,12 @@ export function initLocalStorageIfEmpty() {
   if (!localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS)) {
     setLocalItem(STORAGE_KEYS.ASSIGNMENTS, INITIAL_ASSIGNMENTS)
   }
-  if (!localStorage.getItem(STORAGE_KEYS.QUIZZES)) {
-    setLocalItem(STORAGE_KEYS.QUIZZES, INITIAL_QUIZZES)
-  }
+  const quizzes = getLocalItem(STORAGE_KEYS.QUIZZES, INITIAL_QUIZZES)
+  const quizIds = new Set(quizzes.map(quiz => quiz.id))
+  setLocalItem(STORAGE_KEYS.QUIZZES, [
+    ...INITIAL_PRIMARY_QUIZZES.filter(quiz => !quizIds.has(quiz.id)),
+    ...quizzes
+  ])
   if (!localStorage.getItem(STORAGE_KEYS.CERTIFICATES)) {
     setLocalItem(STORAGE_KEYS.CERTIFICATES, INITIAL_CERTIFICATES)
   }
@@ -69,6 +77,33 @@ export function initLocalStorageIfEmpty() {
   }
   if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
     setLocalItem(STORAGE_KEYS.USERS, INITIAL_USERS)
+  }
+
+  const users = getLocalItem(STORAGE_KEYS.USERS, INITIAL_USERS)
+  setLocalItem(STORAGE_KEYS.USERS, users.map(person => (
+    person.role === 'teacher'
+      ? { ...person, full_name: DEFAULT_TEACHER_NAME }
+      : person
+  )))
+
+  for (const key of [STORAGE_KEYS.COURSES, STORAGE_KEYS.CERTIFICATES]) {
+    const records = getLocalItem(key, [])
+    setLocalItem(key, records.map(record => ({
+      ...record,
+      ...(record.teacher_name ? { teacher_name: DEFAULT_TEACHER_NAME } : {})
+    })))
+  }
+
+  const announcements = getLocalItem(STORAGE_KEYS.ANNOUNCEMENTS, [])
+  setLocalItem(STORAGE_KEYS.ANNOUNCEMENTS, announcements.map(record => (
+    record.author_name && record.author_name !== 'Super Admin'
+      ? { ...record, author_name: DEFAULT_TEACHER_NAME }
+      : record
+  )))
+
+  const savedUser = getLocalItem('wexsee_auth_user', null)
+  if (savedUser?.role === 'teacher') {
+    setLocalItem('wexsee_auth_user', { ...savedUser, full_name: DEFAULT_TEACHER_NAME })
   }
 }
 
@@ -81,12 +116,31 @@ export async function getCourses() {
       const { data, error } = await supabase
         .from('courses')
         .select('*, categories(name), profiles(full_name)')
-      if (!error && data && data.length > 0) return data
+      if (error) throw error
+      if (data && data.length > 0) {
+        const localCourses = getLocalItem(STORAGE_KEYS.COURSES, INITIAL_COURSES)
+        const courseIds = new Set(localCourses.map(course => course.id))
+        const courseCodes = new Set(localCourses.map(course => course.course_code))
+        return [
+          ...localCourses,
+          ...data.filter(course => !courseIds.has(course.id) && !courseCodes.has(course.course_code)).map(course => ({
+            ...course,
+            category_name: course.categories?.name,
+            teacher_name: normalizeTeacherName(course.profiles?.full_name),
+            modules: course.modules || []
+          }))
+        ]
+      }
     } catch (e) {
       console.warn('Falling back to local data:', e)
     }
   }
-  return getLocalItem(STORAGE_KEYS.COURSES, INITIAL_COURSES)
+  const courses = getLocalItem(STORAGE_KEYS.COURSES, INITIAL_COURSES)
+  const courseIds = new Set(courses.map(course => course.id))
+  return [
+    ...INITIAL_PRIMARY_CLASSES.filter(course => !courseIds.has(course.id)),
+    ...courses
+  ]
 }
 
 export async function getCourseById(courseId) {
@@ -119,9 +173,12 @@ export async function createCourse(newCourseData) {
         description: course.description,
         thumbnail_url: course.thumbnail_url,
         category_id: course.category_id,
+        subject_label: course.subject_label || null,
         difficulty: course.difficulty,
         duration_weeks: course.duration_weeks,
         language: course.language,
+        primary_subject: course.primary_subject || null,
+        grade_level: course.grade_level || null,
         status: 'published'
       }])
     } catch (e) {
@@ -314,7 +371,12 @@ export async function gradeSubmission(assignmentId, studentId, score, feedback) 
 // 4. QUIZZES & ATTEMPTS
 // ==============================================================================
 export async function getQuizzes() {
-  return getLocalItem(STORAGE_KEYS.QUIZZES, INITIAL_QUIZZES)
+  const quizzes = getLocalItem(STORAGE_KEYS.QUIZZES, INITIAL_QUIZZES)
+  const quizIds = new Set(quizzes.map(quiz => quiz.id))
+  return [
+    ...INITIAL_PRIMARY_QUIZZES.filter(quiz => !quizIds.has(quiz.id)),
+    ...quizzes
+  ]
 }
 
 export async function createQuiz(quizData) {
@@ -395,7 +457,7 @@ export async function issueCertificate(studentId, courseId) {
     course_title: course.title,
     certificate_number: certNumber,
     issued_at: new Date().toISOString(),
-    teacher_name: course.teacher_name || 'Pak Ariq Nurhadi',
+    teacher_name: normalizeTeacherName(course.teacher_name || DEFAULT_TEACHER_NAME),
     authorized_by: 'WExSEE Academic Board'
   }
 

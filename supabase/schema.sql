@@ -84,6 +84,9 @@ CREATE TABLE IF NOT EXISTS public.courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     course_code VARCHAR(50) UNIQUE NOT NULL,
+    primary_subject VARCHAR(150),
+    subject_label VARCHAR(150),
+    grade_level INTEGER CHECK (grade_level IS NULL OR grade_level BETWEEN 1 AND 12),
     description TEXT,
     thumbnail_url TEXT,
     category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
@@ -98,6 +101,11 @@ CREATE TABLE IF NOT EXISTS public.courses (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL
 );
+
+ALTER TABLE public.courses
+    ADD COLUMN IF NOT EXISTS primary_subject VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS subject_label VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS grade_level INTEGER CHECK (grade_level IS NULL OR grade_level BETWEEN 1 AND 12);
 
 -- 3.4 Course Modules Table
 CREATE TABLE IF NOT EXISTS public.course_modules (
@@ -547,20 +555,33 @@ CREATE POLICY "Teachers and admins can post announcements"
 -- ==============================================================================
 -- 7. SUPABASE STORAGE BUCKETS SETUP
 -- ==============================================================================
-INSERT INTO storage.buckets (id, name, public)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
-    ('avatars', 'avatars', true),
-    ('course-thumbnails', 'course-thumbnails', true),
-    ('course-materials', 'course-materials', false),
-    ('lesson-videos', 'lesson-videos', false),
-    ('assignment-submissions', 'assignment-submissions', false),
-    ('certificates', 'certificates', true),
-    ('message-attachments', 'message-attachments', false)
+    ('avatars', 'avatars', true, NULL, NULL),
+    ('course-thumbnails', 'course-thumbnails', true, NULL, NULL),
+    ('course-materials', 'course-materials', false, NULL, NULL),
+    ('lesson-videos', 'lesson-videos', true, 104857600, ARRAY['video/mp4', 'video/webm', 'video/quicktime']),
+    ('assignment-submissions', 'assignment-submissions', false, NULL, NULL),
+    ('certificates', 'certificates', true, NULL, NULL),
+    ('message-attachments', 'message-attachments', false, NULL, NULL)
 ON CONFLICT (id) DO NOTHING;
+
+UPDATE storage.buckets
+SET public = true,
+    file_size_limit = 104857600,
+    allowed_mime_types = ARRAY['video/mp4', 'video/webm', 'video/quicktime']
+WHERE id = 'lesson-videos';
 
 -- Public read for avatars, course-thumbnails, certificates
 CREATE POLICY "Public read for thumbnails" ON storage.objects
-    FOR SELECT USING (bucket_id IN ('avatars', 'course-thumbnails', 'certificates'));
+    FOR SELECT USING (bucket_id IN ('avatars', 'course-thumbnails', 'certificates', 'lesson-videos'));
+
+CREATE POLICY "Teachers upload lesson videos" ON storage.objects
+    FOR INSERT WITH CHECK (
+        bucket_id = 'lesson-videos'
+        AND auth.role() = 'authenticated'
+        AND public.current_user_role() IN ('teacher', 'admin')
+    );
 
 -- Authenticated upload for avatars and submissions
 CREATE POLICY "User upload avatars" ON storage.objects

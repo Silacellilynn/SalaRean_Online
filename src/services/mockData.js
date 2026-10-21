@@ -19,8 +19,8 @@ export const INITIAL_USERS = [
   },
   {
     id: 'user-teacher-01',
-    full_name: 'Pak Ariq Nurhadi',
-    username: 'ariq_teacher',
+    full_name: 'Silacellilynn (Ung Peng Seng)',
+    username: 'silacellilynn',
     email: 'teacher@wexsee.edu',
     phone: '+62 811 9876 5432',
     date_of_birth: '1992-08-20',
@@ -79,7 +79,7 @@ export const INITIAL_COURSES = [
     category_id: 'cat-1',
     category_name: 'Web & Mobile Development',
     teacher_id: 'user-teacher-01',
-    teacher_name: 'Pak Ariq Nurhadi',
+    teacher_name: 'Silacellilynn (Ung Peng Seng)',
     difficulty: 'Beginner',
     duration_weeks: 10,
     language: 'English',
@@ -157,7 +157,7 @@ Supabase provides the power of PostgreSQL combined with instant REST & Realtime 
     category_id: 'cat-3',
     category_name: 'Esports & Gaming Operations',
     teacher_id: 'user-teacher-01',
-    teacher_name: 'Pak Ariq Nurhadi',
+    teacher_name: 'Silacellilynn (Ung Peng Seng)',
     difficulty: 'Intermediate',
     duration_weeks: 8,
     language: 'English',
@@ -194,7 +194,7 @@ Supabase provides the power of PostgreSQL combined with instant REST & Realtime 
     category_id: 'cat-2',
     category_name: 'AI & Data Engineering',
     teacher_id: 'user-teacher-01',
-    teacher_name: 'Pak Ariq Nurhadi',
+    teacher_name: 'Silacellilynn (Ung Peng Seng)',
     difficulty: 'Advanced',
     duration_weeks: 12,
     language: 'English',
@@ -348,7 +348,7 @@ export const INITIAL_CERTIFICATES = [
     course_title: 'Competitive Esports Strategy & Team Management',
     certificate_number: 'WEX-2026-000001',
     issued_at: '2026-10-05T09:00:00Z',
-    teacher_name: 'Pak Ariq Nurhadi',
+    teacher_name: 'Silacellilynn (Ung Peng Seng)',
     authorized_by: 'WExSEE Academic Board'
   }
 ]
@@ -366,7 +366,7 @@ export const INITIAL_ANNOUNCEMENTS = [
     id: 'ann-2',
     title: 'Web Programming Midterm Schedule Notice',
     content: 'The Web Programming Midterm Examination will commence on 20 October 2026 at 7:00 PM WIB. Make sure to complete all Module 1 & 2 lessons before taking the exam.',
-    author_name: 'Pak Ariq Nurhadi',
+    author_name: 'Silacellilynn (Ung Peng Seng)',
     created_at: '2026-10-06T11:30:00Z',
     is_global: false
   }

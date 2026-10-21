@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase, isSupabaseConfigured } from '../services/supabase'
-import { INITIAL_USERS, initLocalStorageIfEmpty } from '../services/lmsService'
+import { initLocalStorageIfEmpty } from '../services/lmsService'
+import { INITIAL_USERS } from '../services/mockData'
+import { DEFAULT_TEACHER_NAME, normalizeTeacherName } from '../services/teacherIdentity'
 
 const AuthContext = createContext(null)
 
@@ -10,12 +12,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem(AUTH_USER_KEY)
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        return parsed.role === 'teacher'
+          ? { ...parsed, full_name: normalizeTeacherName(parsed.full_name) }
+          : parsed
+      }
     } catch (e) {
       console.error(e)
     }
-    // Default to the student user (Ung Pengseng) for seamless instant experience
-    return INITIAL_USERS[0]
+    return null
   })
 
   const [loading, setLoading] = useState(true)
@@ -29,6 +35,8 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           fetchSupabaseProfile(session.user)
         } else {
+          setUser(null)
+          localStorage.removeItem(AUTH_USER_KEY)
           setLoading(false)
         }
       })
@@ -37,6 +45,8 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           fetchSupabaseProfile(session.user)
         } else {
+          setUser(null)
+          localStorage.removeItem(AUTH_USER_KEY)
           setLoading(false)
         }
       })
@@ -56,14 +66,20 @@ export function AuthProvider({ children }) {
         .single()
 
       if (!error && data) {
-        setUser(data)
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data))
+        const profile = {
+          ...data,
+          full_name: data.role === 'teacher' ? normalizeTeacherName(data.full_name) : data.full_name
+        }
+        setUser(profile)
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(profile))
       } else {
         // Fallback user object
         const basicUser = {
           id: authUser.id,
           email: authUser.email,
-          full_name: authUser.user_metadata?.full_name || authUser.email,
+          full_name: authUser.user_metadata?.role === 'teacher'
+            ? normalizeTeacherName(authUser.user_metadata?.full_name || DEFAULT_TEACHER_NAME)
+            : authUser.user_metadata?.full_name || authUser.email,
           role: authUser.user_metadata?.role || 'student',
           avatar_url: authUser.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + authUser.id,
           member_id: 'WEX-' + authUser.id.substring(0, 6).toUpperCase()
@@ -108,6 +124,21 @@ export function AuthProvider({ children }) {
       localStorage.setItem(AUTH_USER_KEY, JSON.stringify(customUser))
       return { user: customUser }
     }
+  }
+
+  const signInWithGoogle = async () => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Google sign-in requires a configured Supabase project. Add your Supabase URL and anon key to .env first.')
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+
+    if (error) throw error
   }
 
   // Register handler
@@ -161,7 +192,8 @@ export function AuthProvider({ children }) {
   // Logout handler
   const logout = async () => {
     if (isSupabaseConfigured) {
-      await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
     }
     setUser(null)
     localStorage.removeItem(AUTH_USER_KEY)
@@ -173,6 +205,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
+        signInWithGoogle,
         register,
         logout,
         switchRole,

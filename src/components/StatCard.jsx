@@ -15,9 +15,9 @@ export default function StatCard({ title, value, icon: Icon, trend, subtitle, co
     <div className="relative overflow-hidden rounded-xl border border-white/5 bg-[#141622] p-5 shadow-xl transition-all duration-300 hover:border-amber-500/30 hover:shadow-amber-500/5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold tracking-wider text-gray-400 uppercase">{title}</p>
-          <h3 className="mt-2 text-2xl font-bold tracking-tight text-white lg:text-3xl">{value}</h3>
-          {subtitle && <p className="mt-1 text-xs text-gray-400">{subtitle}</p>}
+          <p className="text-xs font-semibold tracking-wider text-[#555555] uppercase">{title}</p>
+          <h3 className="mt-2 text-2xl font-bold tracking-tight text-[#111111] lg:text-3xl">{value}</h3>
+          {subtitle && <p className="mt-1 text-xs text-[#555555]">{subtitle}</p>}
         </div>
         {Icon && (
           <div className={`rounded-lg border p-3 ${iconStyle}`}>
@@ -28,7 +28,7 @@ export default function StatCard({ title, value, icon: Icon, trend, subtitle, co
       {trend && (
         <div className="mt-3 flex items-center text-xs font-medium text-emerald-400">
           <span>{trend}</span>
-          <span className="ml-1.5 text-gray-400">vs last period</span>
+          <span className="ml-1.5 text-[#555555]">vs last period</span>
         </div>
       )}
     </div>
